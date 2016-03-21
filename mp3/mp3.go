@@ -8,8 +8,6 @@ package mp3
 #include <stdint.h>
 
 int64_t mp3_duration(const char * url) {
-	av_register_all();
-	avcodec_register_all();
 	AVFormatContext *ctx = NULL;
 	int err = avformat_open_input(&ctx,url,NULL,NULL);
 	if (err < 0) {
@@ -23,8 +21,6 @@ int64_t mp3_duration(const char * url) {
 }
 
 int mp3_check(const char * url) {
-	av_register_all();
-	avcodec_register_all();
 	AVFormatContext *ctx = NULL;
 	int err = avformat_open_input(&ctx,url,NULL,NULL);
 	if (err < 0) {
@@ -70,9 +66,6 @@ int mp3_check(const char * url) {
 }
 
 AVPacket retrieve_album_art(const char *url) {
-	av_register_all();
-	avcodec_register_all();;
-
 	AVPacket err;
 	err.size = 0;
 
@@ -106,6 +99,11 @@ import (
 	"time"
 	"unsafe"
 )
+
+func init() {
+	C.av_register_all()
+	C.avcodec_register_all()
+}
 
 //TODO(sjon): Use headers instead like in extract
 //Returns whether or not the file is MP3 based on the streams that reside in it
