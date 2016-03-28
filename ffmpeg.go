@@ -123,9 +123,6 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 
 //TODO:C code is broken for formats other than mp3, will need manual calculation
 func (d Decoder) Duration() (time.Duration, error) {
-	if d.ctx == nil {
-		return 0, errors.New("Can't get duration from uninitialized context")
-	}
 	if d.ctx.duration == C.AV_NOPTS_VALUE{
 		return 0,errors.New("Context has no duration set")
 	}
