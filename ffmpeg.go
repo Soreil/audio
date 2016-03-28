@@ -159,5 +159,5 @@ func (d Decoder) Picture() ([]byte, error) {
 	if img.size <= 0 {
 		return nil, errors.New("Failed to extract picture")
 	}
-	return C.GoBytes(unsafe.Pointer(&img.data), img.size), nil
+	return (*[1 << 30]byte)(unsafe.Pointer(img.data))[:img.size:img.size],nil
 }
