@@ -123,10 +123,10 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 
 //TODO:C code is broken for formats other than mp3, will need manual calculation
 func (d Decoder) Duration() (time.Duration, error) {
-	if d.ctx.duration == C.AV_NOPTS_VALUE{
-		return 0,errors.New("Context has no duration set")
+	if d.ctx.duration == C.AV_NOPTS_VALUE {
+		return 0, errors.New("Context has no duration set")
 	}
-	return time.Duration(d.ctx.duration) * 100, nil
+	return time.Duration(d.ctx.duration) * 1000, nil
 
 }
 
@@ -159,5 +159,5 @@ func (d Decoder) Picture() ([]byte, error) {
 	if img.size <= 0 {
 		return nil, errors.New("Failed to extract picture")
 	}
-	return (*[1 << 30]byte)(unsafe.Pointer(img.data))[:img.size:img.size],nil
+	return (*[1 << 30]byte)(unsafe.Pointer(img.data))[:img.size:img.size], nil
 }
