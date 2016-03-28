@@ -1,12 +1,14 @@
 package audio
 
 // #cgo pkg-config: libavcodec libavutil libavformat
+// #cgo CFLAGS: -std=c11
 /*
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/frame.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/avutil.h>
+#include <libavutil/opt.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
 #include <stdio.h>
@@ -119,10 +121,13 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	}
 }
 
-//TODO:C code is broken, plausibly from the way we create our context.
+//TODO:C code is broken for formats other than mp3, will need manual calculation
 func (d Decoder) Duration() (time.Duration, error) {
 	if d.ctx == nil {
 		return 0, errors.New("Can't get duration from uninitialized context")
+	}
+	if d.ctx.duration == C.AV_NOPTS_VALUE{
+		return 0,errors.New("Context has no duration set")
 	}
 	return time.Duration(d.ctx.duration) * 100, nil
 
