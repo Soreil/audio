@@ -8,7 +8,10 @@ package audio
 #include <libavutil/pixdesc.h>
 #include <libavutil/avutil.h>
 #include <libavformat/avformat.h>
+#include <libavformat/avio.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 #define BUFFER_SIZE 4096
 
@@ -16,6 +19,7 @@ struct buffer_data {
     uint8_t *ptr;
     size_t size; ///< size left in the buffer
 };
+
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
     struct buffer_data *bd = (struct buffer_data *)opaque;
@@ -29,7 +33,7 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 
 AVFormatContext * create_context(unsigned char *opaque,size_t len)
 {
-	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE+FF_INPUT_BUFFER_PADDING_SIZE);
+	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE);
 
 	struct buffer_data bd = {0};
 	bd.ptr = opaque;
@@ -38,12 +42,15 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 	AVIOContext *ioCtx = avio_alloc_context(buffer,BUFFER_SIZE,0,&bd,&read_packet,NULL,NULL);
 
 	AVFormatContext * ctx = avformat_alloc_context();
+	if (!ctx) {
+		return NULL;
+	}
 
 	//Set up context to read from memory
 	ctx->pb = ioCtx;
 
 	//open takes a fake filename when the context pb field is set up
-	int err = avformat_open_input(&ctx, "dummyFileName", NULL, NULL);
+	int err = avformat_open_input(&ctx, NULL, NULL, NULL);
 	if (err < 0) {
 		return NULL;
 	}
@@ -52,14 +59,12 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 	if (err < 0) {
 		return NULL;
 	}
-
 	return ctx;
 }
 
 AVCodec * get_codec(AVFormatContext *ctx,enum AVMediaType strmType) {
 	AVCodec * codec = NULL;
 	av_find_best_stream(ctx, strmType, -1, -1, &codec, 0);
-
 	return codec;
 }
 
@@ -115,8 +120,12 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 }
 
 //TODO:C code is broken, plausibly from the way we create our context.
-func (d Decoder) Duration() time.Duration {
-	return time.Duration(d.ctx.duration) * 100
+func (d Decoder) Duration() (time.Duration, error) {
+	if d.ctx == nil {
+		return 0, errors.New("Can't get duration from uninitialized context")
+	}
+	return time.Duration(d.ctx.duration) * 100, nil
+
 }
 
 //Get audio format string

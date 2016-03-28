@@ -35,9 +35,14 @@ func TestConstruct(t *testing.T) {
 			t.Log("Failed to create decoder", err)
 			continue
 		}
+		d, err := dec.Duration()
+		if err != nil {
+			t.Log("Duration error:", err)
+		} else {
+			t.Log("Audio duration: ", d)
+		}
 		t.Log("Audio format: ", dec.AudioFormat())
 		t.Log("Image format: ", dec.ImageFormat())
-		t.Log("Audio duration: ", dec.Duration())
 		pic, err := dec.Picture()
 		if err != nil {
 			t.Log("Picture error : ", err)
