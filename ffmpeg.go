@@ -15,7 +15,9 @@ package audio
 #include <stdlib.h>
 #include <stdint.h>
 
-#define BUFFER_SIZE 4096
+//Placeholder, 256K is enough to make Opus with JPG succeed, 512K Opus with PNG.
+#define BUFFER_SIZE 512000
+//#define BUFFER_SIZE 4096
 
 struct buffer_data {
 	uint8_t *start_ptr; ///< start of buffer
