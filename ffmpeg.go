@@ -1,16 +1,11 @@
 package audio
 
-// #cgo pkg-config: libavcodec libavutil libavformat
+// #cgo pkg-config: libavcodec libavformat
 // #cgo CFLAGS: -std=c11
 /*
 
 #include <libavcodec/avcodec.h>
-#include <libavutil/frame.h>
-#include <libavutil/pixdesc.h>
-#include <libavutil/avutil.h>
-#include <libavutil/opt.h>
 #include <libavformat/avformat.h>
-#include <libavformat/avio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
