@@ -23,6 +23,9 @@ func TestConstruct(t *testing.T) {
 		"exampleTrue.mp3",
 		"exampleTrue.ogg",
 		"exampleTrue.opus",
+		"traincrash.webm",
+		"test.webm",
+		"mpthreetest.mp3",
 	}
 	for _, input := range files {
 		t.Log("Filename: ", input)
@@ -47,7 +50,7 @@ func TestConstruct(t *testing.T) {
 		if err != nil {
 			t.Log("Picture error : ", err)
 		} else {
-			t.Log("Picture length: ", fmt.Sprint(len(pic)))
+			t.Log("Picture length: ", fmt.Sprint(len(pic)/1024, "k"))
 		}
 	}
 }

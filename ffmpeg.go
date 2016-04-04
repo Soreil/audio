@@ -18,8 +18,10 @@ package audio
 #define BUFFER_SIZE 4096
 
 struct buffer_data {
-    uint8_t *ptr;
+	uint8_t *start_ptr; ///< start of buffer
+    uint8_t *ptr; ///<current index in buffer
     size_t size; ///< size left in the buffer
+    size_t len; ///< size of the buffer
 };
 
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
@@ -32,16 +34,41 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
     bd->size -= buf_size;
     return buf_size;
 }
+static int64_t seek(void *opaque, int64_t offset, int whence)
+{
+	if (whence == AVSEEK_SIZE) {
+        return -1; // "size of my handle in bytes UNIMPLEMENTED"
+	}
+
+    struct buffer_data *bd = (struct buffer_data *)opaque;
+
+	if (whence == SEEK_CUR) { // relative to start of file
+		bd->ptr += offset;
+	//	bd->size -= offset;
+    }
+//	if (whence == SEEK_END) { // relative to end of file
+//        bd->ptr = bd->start_ptr+bd->len + offset;
+//	//	bd->size = bd->len+offset;
+//    }
+//	if (whence == SEEK_SET) { // relative to start of file
+//		bd->ptr = bd->start_ptr+offset;
+//	//	bd->size = offset;
+//	}
+
+	return bd->len-bd->size;
+}
 
 AVFormatContext * create_context(unsigned char *opaque,size_t len)
 {
 	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE);
 
 	struct buffer_data bd = {0};
+	bd.start_ptr = opaque;
 	bd.ptr = opaque;
 	bd.size = len;
+	bd.len = len;
 
-	AVIOContext *ioCtx = avio_alloc_context(buffer,BUFFER_SIZE,0,&bd,&read_packet,NULL,NULL);
+	AVIOContext *ioCtx = avio_alloc_context(buffer,BUFFER_SIZE,0,&bd,&read_packet,NULL,&seek);
 
 	AVFormatContext * ctx = avformat_alloc_context();
 	if (!ctx) {
@@ -51,7 +78,6 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 	//Set up context to read from memory
 	ctx->pb = ioCtx;
 
-	//open takes a fake filename when the context pb field is set up
 	int err = avformat_open_input(&ctx, NULL, NULL, NULL);
 	if (err < 0) {
 		return NULL;
@@ -61,6 +87,9 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 	if (err < 0) {
 		return NULL;
 	}
+
+ //   av_dump_format(ctx, 0, NULL, 0);
+
 	return ctx;
 }
 
@@ -103,6 +132,19 @@ type Decoder struct {
 func init() {
 	C.av_register_all()
 	C.avcodec_register_all()
+	C.av_log_set_level(32)
+}
+
+func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
+	var array = unsafe.Pointer(C.calloc(C.size_t(len(byteSlice)), 1))
+	var arrayptr = uintptr(array)
+
+	for i := 0; i < len(byteSlice); i++ {
+		*(*C.uchar)(unsafe.Pointer(arrayptr)) = C.uchar(byteSlice[i])
+		arrayptr++
+	}
+
+	return array
 }
 
 //Sets up a context for the file to use to probe for information
@@ -114,7 +156,9 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	if len(data) <= 0 {
 		return Decoder{}, errors.New("No input data provided")
 	}
-	if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
+
+	if ctx := C.create_context((*C.uchar)(byteSliceToCArray(data)), C.size_t(len(data))); ctx != nil {
+		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx}, nil
 	} else {
 		return Decoder{}, errors.New("Failed to create decoder context")
@@ -159,5 +203,5 @@ func (d Decoder) Picture() ([]byte, error) {
 	if img.size <= 0 {
 		return nil, errors.New("Failed to extract picture")
 	}
-	return (*[1 << 30]byte)(unsafe.Pointer(img.data))[:img.size:img.size], nil
+	return C.GoBytes(unsafe.Pointer(img.data), img.size), nil
 }
