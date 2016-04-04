@@ -122,6 +122,7 @@ import (
 	"unsafe"
 )
 
+//Wrapper around internal state, all methods are called on this.
 type Decoder struct {
 	ctx *C.AVFormatContext
 }
@@ -144,7 +145,7 @@ func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
 	return array
 }
 
-//Sets up a context for the file to use to probe for information
+//Sets up a context for the file to use to probe for information.
 func NewDecoder(r io.Reader) (Decoder, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -162,7 +163,7 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	}
 }
 
-//Gets duration of audio track, can fail on some Opus files
+//Gets duration of audio track.
 func (d Decoder) Duration() (time.Duration, error) {
 	if d.ctx.duration == C.AV_NOPTS_VALUE {
 		return 0, errors.New("Context has no duration set")
