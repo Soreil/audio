@@ -47,12 +47,12 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
 	//	bd->size -= offset;
     }
 	if (whence == SEEK_END) { // relative to end of file
-        bd->ptr = bd->start_ptr+bd->len + offset;
+        bd->ptr = (bd->start_ptr+bd->len) + offset;
 	//	bd->size = bd->len+offset;
     }
 	if (whence == SEEK_SET) { // relative to start of file
 		bd->ptr = bd->start_ptr+offset;
-	//	bd->size = offset;
+	//	bd->size = bd->len-offset;
 	}
 
 	return bd->len-bd->size;
@@ -88,7 +88,6 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 		return NULL;
 	}
 
- //   av_dump_format(ctx, 0, NULL, 0);
 
 	return ctx;
 }
@@ -102,10 +101,6 @@ AVCodec * get_codec(AVFormatContext *ctx,enum AVMediaType strmType) {
 //Extract embedded images
 AVPacket retrieve_album_art(AVFormatContext *ctx) {
 	AVPacket err;
-	// read the format headers
-	if (ctx->iformat->read_header(ctx) < 0) {
-		return err;
-	}
 
 	// find the first attached picture, if available
 	for (int i = 0; i < ctx->nb_streams; i++) {
@@ -165,7 +160,7 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	}
 }
 
-//TODO:C code is broken for formats other than mp3, will need manual calculation
+//Gets duration of audio track, can fail on some Opus files
 func (d Decoder) Duration() (time.Duration, error) {
 	if d.ctx.duration == C.AV_NOPTS_VALUE {
 		return 0, errors.New("Context has no duration set")
@@ -197,7 +192,7 @@ func (d Decoder) ImageFormat() string {
 	}
 }
 
-//Extract raw image
+//Extract attached image
 func (d Decoder) Picture() ([]byte, error) {
 	img := C.retrieve_album_art(d.ctx)
 	if img.size <= 0 {

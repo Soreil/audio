@@ -9,8 +9,6 @@ import (
 
 func TestConstruct(t *testing.T) {
 	var files = []string{
-		"detodos.opus",
-		"ehren-paper_lights-64.opus",
 		"exampleFalse.mp3",
 		"exampleFalse.ogg",
 		"exampleImage.mp3",
