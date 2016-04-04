@@ -36,31 +36,31 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 }
 static int64_t seek(void *opaque, int64_t offset, int whence)
 {
-	if (whence == AVSEEK_SIZE) {
-        return -1; // "size of my handle in bytes UNIMPLEMENTED"
-	}
-
     struct buffer_data *bd = (struct buffer_data *)opaque;
 
+	if (whence == AVSEEK_SIZE) {
+    //    return bd->len; // "size of my handle in bytes"
+        return -1; // "size of my handle in bytes UNIMPLEMENTED"
+	}
 	if (whence == SEEK_CUR) { // relative to start of file
 		bd->ptr += offset;
 	//	bd->size -= offset;
     }
-//	if (whence == SEEK_END) { // relative to end of file
-//        bd->ptr = bd->start_ptr+bd->len + offset;
-//	//	bd->size = bd->len+offset;
-//    }
-//	if (whence == SEEK_SET) { // relative to start of file
-//		bd->ptr = bd->start_ptr+offset;
-//	//	bd->size = offset;
-//	}
+	if (whence == SEEK_END) { // relative to end of file
+        bd->ptr = bd->start_ptr+bd->len + offset;
+	//	bd->size = bd->len+offset;
+    }
+	if (whence == SEEK_SET) { // relative to start of file
+		bd->ptr = bd->start_ptr+offset;
+	//	bd->size = offset;
+	}
 
 	return bd->len-bd->size;
 }
 
 AVFormatContext * create_context(unsigned char *opaque,size_t len)
 {
-	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE);
+	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE+FF_INPUT_BUFFER_PADDING_SIZE);
 
 	struct buffer_data bd = {0};
 	bd.start_ptr = opaque;
