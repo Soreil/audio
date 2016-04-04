@@ -176,6 +176,11 @@ func (d Decoder) AudioFormat() string {
 	return C.GoString(c.name)
 }
 
+//Returns bitrate in bps.
+func (d Decoder) Bitrate() int64 {
+	return int64(d.ctx.bit_rate)
+}
+
 //Get image format string
 func (d Decoder) ImageFormat() string {
 	c := C.get_codec(d.ctx, C.AVMEDIA_TYPE_VIDEO)

@@ -43,6 +43,7 @@ func TestConstruct(t *testing.T) {
 			t.Log("Audio duration: ", d)
 		}
 		t.Log("Audio format: ", dec.AudioFormat())
+		t.Log("Bitrate: ", dec.Bitrate()/1024, "kbps")
 		t.Log("Image format: ", dec.ImageFormat())
 		pic, err := dec.Picture()
 		if err != nil {
