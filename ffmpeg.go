@@ -1,11 +1,12 @@
 package audio
 
-// #cgo pkg-config: libavcodec libavformat
+// #cgo pkg-config: libavcodec libavformat libavutil
 // #cgo CFLAGS: -std=c11
 /*
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -198,7 +199,7 @@ func (d Decoder) ImageFormat() string {
 //Extract attached image
 func (d Decoder) Picture() ([]byte, error) {
 	img := C.retrieve_album_art(d.ctx)
-	if img.size <= 0 {
+	if img.size <= 0 || img.data == nil {
 		return nil, errors.New("Failed to extract picture")
 	}
 	return C.GoBytes(unsafe.Pointer(img.data), img.size), nil
