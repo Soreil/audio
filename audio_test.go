@@ -49,8 +49,8 @@ func TestConstruct(t *testing.T) {
 			t.Log("Failed to create decoder", err)
 			continue
 		}
-		t.Log("Audio duration: ", dec.Duration())
 		if fmt := dec.AudioFormat(); fmt != "" {
+			t.Log("Audio duration: ", dec.Duration())
 			t.Log("Audio format: ", dec.AudioFormat())
 			t.Log("Bitrate: ", dec.Bitrate()/1000, "kbps")
 		}

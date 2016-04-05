@@ -98,12 +98,12 @@ AVCodecContext * get_codecContext(AVFormatContext *ctx,enum AVMediaType strmType
 	AVCodec * codec = NULL;
 
 	int strm = av_find_best_stream(ctx, strmType, -1, -1, &codec, 0);
-	if (strm < 0 ){
+	if (strm < 0 || strm == AVERROR_STREAM_NOT_FOUND){
 		return NULL;
 	}
 	AVCodecContext * codecCtx = ctx->streams[strm]->codec;
 	int err = avcodec_open2(codecCtx, codec, NULL);
-	if (err < 0) {
+	if (err < 0 ) {
 		return NULL;
 	}
 	return codecCtx;
@@ -112,7 +112,7 @@ AVCodecContext * get_codecContext(AVFormatContext *ctx,enum AVMediaType strmType
 //Doesn't seem to produce any nice results sadly
 int64_t get_duration(AVFormatContext *ctx) {
 	int strm = av_find_best_stream(ctx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
-	if (strm < 0 ){
+	if (strm < 0|| strm == AVERROR_STREAM_NOT_FOUND ){
 		return 0;
 	}
 	return ctx->streams[strm]->duration;
