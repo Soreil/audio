@@ -7,6 +7,7 @@ package audio
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavformat/avio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -17,22 +18,22 @@ package audio
 
 struct buffer_data {
 	uint8_t *start_ptr; ///< start of buffer
-    uint8_t *ptr; ///<current index in buffer
-    size_t size; ///< size left in the buffer
-    size_t len; ///< size of the buffer
+    uint8_t *ptr_pos; ///<current index in buffer
+    size_t size_left; ///< size left in the buffer
+    size_t size; ///< size of the buffer
 };
 
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
     struct buffer_data *bd = (struct buffer_data *)opaque;
-	if( buf_size > bd->size) {
-		buf_size = bd-> size;
+	if( buf_size > bd->size_left) {
+		buf_size = bd->size_left;
 	}
 
     // copy internal buffer data to buf
-    memcpy(buf, bd->ptr, buf_size);
-    bd->ptr  += buf_size;
-    bd->size -= buf_size;
+    memcpy(buf, bd->ptr_pos, buf_size);
+    bd->ptr_pos  += buf_size;
+    bd->size_left -= buf_size;
     return buf_size;
 }
 static int64_t seek(void *opaque, int64_t offset, int whence)
@@ -40,23 +41,23 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
     struct buffer_data *bd = (struct buffer_data *)opaque;
 
 	if (whence == AVSEEK_SIZE) {
-    //    return bd->len; // "size of my handle in bytes"
+        return bd->size; // "size of my handle in bytes"
         return -1; // "size of my handle in bytes UNIMPLEMENTED"
 	}
 	if (whence == SEEK_CUR) { // relative to start of file
-		bd->ptr += offset;
-	//	bd->size -= offset;
+		bd->ptr_pos += offset;
+		bd->size_left -= offset;
     }
 	if (whence == SEEK_END) { // relative to end of file
-        bd->ptr = bd->start_ptr+bd->len + offset;
-	//	bd->size = bd->len+offset;
+        bd->ptr_pos = bd->start_ptr+bd->size + offset;
+		bd->size_left = bd->size+offset;
     }
 	if (whence == SEEK_SET) { // relative to start of file
-		bd->ptr = bd->start_ptr+offset;
-	//	bd->size = bd->len-offset;
+		bd->ptr_pos = bd->start_ptr+offset;
+		bd->size_left = bd->size-offset;
 	}
 
-	return bd->len-bd->size;
+	return bd->size-bd->size_left;
 }
 
 AVFormatContext * create_context(unsigned char *opaque,size_t len)
@@ -65,9 +66,9 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 
 	struct buffer_data bd = {0};
 	bd.start_ptr = opaque;
-	bd.ptr = opaque;
+	bd.ptr_pos = opaque;
+	bd.size_left = len;
 	bd.size = len;
-	bd.len = len;
 
 	AVIOContext *ioCtx = avio_alloc_context(buffer,BUFFER_SIZE,0,&bd,&read_packet,NULL,&seek);
 
