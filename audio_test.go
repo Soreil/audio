@@ -24,6 +24,9 @@ func TestConstruct(t *testing.T) {
 		"traincrash.webm",
 		"test.webm",
 		"mpthreetest.mp3",
+		"aacTest.mp4",
+		"aacTest.aac",
+		"itunes.m4a",
 	}
 	for _, input := range files {
 		t.Log("Filename: ", input)
