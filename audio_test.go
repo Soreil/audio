@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+func init() {
+}
+
 func TestConstruct(t *testing.T) {
 	var files = []string{
 		"exampleFalse.mp3",
@@ -26,6 +29,7 @@ func TestConstruct(t *testing.T) {
 
 		"traincrash.webm",
 		"test.webm",
+		"slam.webm",
 
 		"aacTest.mp4",
 
@@ -50,8 +54,8 @@ func TestConstruct(t *testing.T) {
 			t.Log("Audio format: ", dec.AudioFormat())
 			t.Log("Bitrate: ", dec.Bitrate()/1000, "kbps")
 		}
-		if fmt := dec.ImageFormat(); fmt != "" {
-			t.Log("Image format: ", fmt)
+		if dec.hasImage() {
+			t.Log("Image format: ", dec.ImageFormat())
 			pic := dec.Picture()
 			t.Log("Picture length: ", len(pic)/1024, "k")
 		}

@@ -13,8 +13,8 @@ package audio
 #include <stdint.h>
 
 //Placeholder, 256K is enough to make Opus with JPG succeed, 512K Opus with PNG.
-#define BUFFER_SIZE 524288
-//#define BUFFER_SIZE 4096
+//#define BUFFER_SIZE 524288
+#define BUFFER_SIZE 4096
 
 struct buffer_data {
 	uint8_t *start_ptr; ///< start of buffer
@@ -84,7 +84,8 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 	if (err < 0) {
 		return NULL;
 	}
-
+	//TODO(sjon): This is changed in FFMPEG 3.0 but should behave the same
+	//ctx->max_analyze_duration = 100000000;
 	err = avformat_find_stream_info(ctx,NULL);
 	if (err < 0) {
 		return NULL;
@@ -129,6 +130,16 @@ AVPacket retrieve_album_art(AVFormatContext *ctx) {
 	}
 	return err;
 }
+
+int has_image(AVFormatContext *ctx) {
+	// find the first attached picture, if available
+	for (int i = 0; i < ctx->nb_streams; i++) {
+		if (ctx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+			return 0;
+		}
+	}
+	return 1;
+}
 */
 import "C"
 import (
@@ -147,7 +158,7 @@ type Decoder struct {
 func init() {
 	C.av_register_all()
 	C.avcodec_register_all()
-	C.av_log_set_level(32)
+	C.av_log_set_level(48)
 }
 
 func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
@@ -181,13 +192,6 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 
 //Gets duration of audio track.
 func (d Decoder) Duration() time.Duration {
-	if d.ctx.duration == C.AV_NOPTS_VALUE {
-		return 0
-	}
-	//	d1 := time.Duration(d.ctx.duration) * 1000
-	//	d2 := time.Duration(C.get_duration(d.ctx)) * 1000
-	//	log.Println(d1, d2)
-
 	return time.Duration(d.ctx.duration) * 1000
 }
 
@@ -209,11 +213,17 @@ func (d Decoder) Bitrate() int64 {
 	if c.bit_rate != 0 {
 		return int64(c.bit_rate)
 	} else {
+		//This is an estimate, it might not be accurate!
 		return int64(d.ctx.bit_rate)
 	}
 }
 
-//Get image format string
+//Whether or not the file has album art in it
+func (d Decoder) hasImage() bool {
+	return C.has_image(d.ctx) == 0
+}
+
+//Get image format string TO BE REMOVED
 func (d Decoder) ImageFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_VIDEO)
 	if c == nil {
