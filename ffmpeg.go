@@ -207,24 +207,20 @@ func (d Decoder) AudioFormat() string {
 //Returns bitrate in bps.
 func (d Decoder) Bitrate() int64 {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
-	if c == nil {
-		return int64(d.ctx.bit_rate)
-	}
-	if c.bit_rate != 0 {
-		return int64(c.bit_rate)
-	} else {
+	if c == nil || c.bit_rate == 0 {
 		//This is an estimate, it might not be accurate!
 		return int64(d.ctx.bit_rate)
 	}
+	return int64(c.bit_rate)
 }
 
 //Whether or not the file has album art in it
-func (d Decoder) hasImage() bool {
+func (d Decoder) HasImage() bool {
 	return C.has_image(d.ctx) == 0
 }
 
 //Get image format string TO BE REMOVED
-func (d Decoder) ImageFormat() string {
+func (d Decoder) imageFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_VIDEO)
 	if c == nil {
 		return ""
