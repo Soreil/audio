@@ -1,7 +1,6 @@
 package audio
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -10,25 +9,32 @@ import (
 func TestConstruct(t *testing.T) {
 	var files = []string{
 		"exampleFalse.mp3",
-		"exampleFalse.ogg",
 		"exampleImage.mp3",
-		"exampleJPG.ogg",
-		"exampleJPG.opus",
+		"exampleTrue.mp3",
+		"mpthreetest.mp3",
 		"examplePNG.mp3",
+
+		"exampleFalse.ogg",
+		"exampleJPG.ogg",
 		"examplePNG.ogg",
+		"exampleTrue.ogg",
+
+		"exampleJPG.opus",
 		"examplePNG.opus",
 		"exampleTrue2.opus",
-		"exampleTrue.mp3",
-		"exampleTrue.ogg",
 		"exampleTrue.opus",
+
 		"traincrash.webm",
 		"test.webm",
-		"mpthreetest.mp3",
+
 		"aacTest.mp4",
+
 		"aacTest.aac",
+
 		"itunes.m4a",
 	}
 	for _, input := range files {
+		t.Log()
 		t.Log("Filename: ", input)
 		f, err := os.Open(input)
 		if err != nil {
@@ -39,20 +45,15 @@ func TestConstruct(t *testing.T) {
 			t.Log("Failed to create decoder", err)
 			continue
 		}
-		d, err := dec.Duration()
-		if err != nil {
-			t.Log("Duration error:", err)
-		} else {
-			t.Log("Audio duration: ", d)
+		t.Log("Audio duration: ", dec.Duration())
+		if fmt := dec.AudioFormat(); fmt != "" {
+			t.Log("Audio format: ", dec.AudioFormat())
+			t.Log("Bitrate: ", dec.Bitrate()/1000, "kbps")
 		}
-		t.Log("Audio format: ", dec.AudioFormat())
-		t.Log("Bitrate: ", dec.Bitrate()/1024, "kbps")
-		t.Log("Image format: ", dec.ImageFormat())
-		pic, err := dec.Picture()
-		if err != nil {
-			t.Log("Picture error : ", err)
-		} else {
-			t.Log("Picture length: ", fmt.Sprint(len(pic)/1024, "k"))
+		if fmt := dec.ImageFormat(); fmt != "" {
+			t.Log("Image format: ", fmt)
+			pic := dec.Picture()
+			t.Log("Picture length: ", len(pic)/1024, "k")
 		}
 	}
 }

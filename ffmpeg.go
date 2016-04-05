@@ -12,7 +12,7 @@ package audio
 #include <stdint.h>
 
 //Placeholder, 256K is enough to make Opus with JPG succeed, 512K Opus with PNG.
-#define BUFFER_SIZE 512000
+#define BUFFER_SIZE 524288
 //#define BUFFER_SIZE 4096
 
 struct buffer_data {
@@ -25,7 +25,10 @@ struct buffer_data {
 static int read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
     struct buffer_data *bd = (struct buffer_data *)opaque;
-    buf_size = FFMIN(buf_size, bd->size);
+	if( buf_size > bd->size) {
+		buf_size = bd-> size;
+	}
+
     // copy internal buffer data to buf
     memcpy(buf, bd->ptr, buf_size);
     bd->ptr  += buf_size;
@@ -45,7 +48,7 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
 	//	bd->size -= offset;
     }
 	if (whence == SEEK_END) { // relative to end of file
-        bd->ptr = (bd->start_ptr+bd->len) + offset;
+        bd->ptr = bd->start_ptr+bd->len + offset;
 	//	bd->size = bd->len+offset;
     }
 	if (whence == SEEK_SET) { // relative to start of file
@@ -58,7 +61,7 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
 
 AVFormatContext * create_context(unsigned char *opaque,size_t len)
 {
-	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE+FF_INPUT_BUFFER_PADDING_SIZE);
+	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE);
 
 	struct buffer_data bd = {0};
 	bd.start_ptr = opaque;
@@ -86,14 +89,31 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 		return NULL;
 	}
 
-
 	return ctx;
 }
 
-AVCodec * get_codec(AVFormatContext *ctx,enum AVMediaType strmType) {
+AVCodecContext * get_codecContext(AVFormatContext *ctx,enum AVMediaType strmType) {
 	AVCodec * codec = NULL;
-	av_find_best_stream(ctx, strmType, -1, -1, &codec, 0);
-	return codec;
+
+	int strm = av_find_best_stream(ctx, strmType, -1, -1, &codec, 0);
+	if (strm < 0 ){
+		return NULL;
+	}
+	AVCodecContext * codecCtx = ctx->streams[strm]->codec;
+	int err = avcodec_open2(codecCtx, codec, NULL);
+	if (err < 0) {
+		return NULL;
+	}
+	return codecCtx;
+}
+
+//Doesn't seem to produce any nice results sadly
+int64_t get_duration(AVFormatContext *ctx) {
+	int strm = av_find_best_stream(ctx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
+	if (strm < 0 ){
+		return 0;
+	}
+	return ctx->streams[strm]->duration;
 }
 
 //Extract embedded images
@@ -152,43 +172,53 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	}
 
 	if ctx := C.create_context((*C.uchar)(byteSliceToCArray(data)), C.size_t(len(data))); ctx != nil {
-		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
-		return Decoder{ctx}, nil
+		return Decoder{ctx: ctx}, nil
 	} else {
 		return Decoder{}, errors.New("Failed to create decoder context")
 	}
 }
 
 //Gets duration of audio track.
-func (d Decoder) Duration() (time.Duration, error) {
+func (d Decoder) Duration() time.Duration {
 	if d.ctx.duration == C.AV_NOPTS_VALUE {
-		return 0, errors.New("Context has no duration set")
+		return 0
 	}
-	return time.Duration(d.ctx.duration) * 1000, nil
+	//	d1 := time.Duration(d.ctx.duration) * 1000
+	//	d2 := time.Duration(C.get_duration(d.ctx)) * 1000
+	//	log.Println(d1, d2)
 
+	return time.Duration(d.ctx.duration) * 1000
 }
 
 //Get audio format string
 func (d Decoder) AudioFormat() string {
-	c := C.get_codec(d.ctx, C.AVMEDIA_TYPE_AUDIO)
+	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
 	if c == nil {
 		return ""
 	}
-	return C.GoString(c.name)
+	return C.GoString(c.codec.name)
 }
 
 //Returns bitrate in bps.
 func (d Decoder) Bitrate() int64 {
-	return int64(d.ctx.bit_rate)
+	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
+	if c == nil {
+		return int64(d.ctx.bit_rate)
+	}
+	if c.bit_rate != 0 {
+		return int64(c.bit_rate)
+	} else {
+		return int64(d.ctx.bit_rate)
+	}
 }
 
 //Get image format string
 func (d Decoder) ImageFormat() string {
-	c := C.get_codec(d.ctx, C.AVMEDIA_TYPE_VIDEO)
+	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_VIDEO)
 	if c == nil {
 		return ""
 	}
-	fmt := C.GoString(c.name)
+	fmt := C.GoString(c.codec.name)
 	if fmt == "mjpeg" {
 		return "jpeg"
 	} else {
@@ -197,10 +227,10 @@ func (d Decoder) ImageFormat() string {
 }
 
 //Extract attached image
-func (d Decoder) Picture() ([]byte, error) {
+func (d Decoder) Picture() []byte {
 	img := C.retrieve_album_art(d.ctx)
 	if img.size <= 0 || img.data == nil {
-		return nil, errors.New("Failed to extract picture")
+		return nil
 	}
-	return C.GoBytes(unsafe.Pointer(img.data), img.size), nil
+	return C.GoBytes(unsafe.Pointer(img.data), img.size)
 }
