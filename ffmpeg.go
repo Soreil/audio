@@ -158,7 +158,7 @@ type Decoder struct {
 func init() {
 	C.av_register_all()
 	C.avcodec_register_all()
-	C.av_log_set_level(48)
+	C.av_log_set_level(16)
 }
 
 func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
@@ -188,6 +188,10 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	} else {
 		return Decoder{}, errors.New("Failed to create decoder context")
 	}
+}
+
+func (d Decoder) DestroyDecoder() {
+	C.av_free(unsafe.Pointer(d.ctx.pb))
 }
 
 //Gets duration of audio track.
