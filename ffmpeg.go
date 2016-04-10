@@ -140,7 +140,11 @@ int has_image(AVFormatContext *ctx) {
 	}
 	return 1;
 }
+
 void destroy(AVFormatContext *ctx) {
+	av_free(ctx->pb->buffer);
+	ctx->pb->buffer = NULL;
+	av_free(ctx->pb);
 	av_free(ctx);
 }
 */
@@ -185,8 +189,9 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	if len(data) <= 0 {
 		return Decoder{}, errors.New("No input data provided")
 	}
-
-	if ctx := C.create_context((*C.uchar)(byteSliceToCArray(data)), C.size_t(len(data))); ctx != nil {
+	buf := byteSliceToCArray(data)
+	defer C.free(buf)
+	if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
 		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
 	}
@@ -250,5 +255,6 @@ func (d Decoder) Picture() []byte {
 //Destroy frees the decoder, it should not be used after this point with a NewDecoder call.
 func (d *Decoder) Destroy() {
 	C.destroy(d.ctx)
+	d.ctx = nil
 	d = nil
 }
