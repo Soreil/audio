@@ -140,6 +140,11 @@ int has_image(AVFormatContext *ctx) {
 	}
 	return 1;
 }
+void destroy(AVFormatContext *ctx) {
+	//av_free(ctx->pb);
+	//avformat_close_input(&ctx);
+	av_free(ctx);
+}
 */
 import "C"
 import (
@@ -184,6 +189,7 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	}
 
 	if ctx := C.create_context((*C.uchar)(byteSliceToCArray(data)), C.size_t(len(data))); ctx != nil {
+		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
 	} else {
 		return Decoder{}, errors.New("Failed to create decoder context")
@@ -198,6 +204,7 @@ func (d Decoder) Duration() time.Duration {
 //Get audio format string
 func (d Decoder) AudioFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
+	defer C.avcodec_close(unsafe.Pointer(c))
 	if c == nil {
 		return ""
 	}
@@ -207,6 +214,7 @@ func (d Decoder) AudioFormat() string {
 //Returns bitrate in bps.
 func (d Decoder) Bitrate() int64 {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
+	defer C.avcodec_close(unsafe.Pointer(c))
 	if c == nil || c.bit_rate == 0 {
 		//This is an estimate, it might not be accurate!
 		return int64(d.ctx.bit_rate)
@@ -222,6 +230,7 @@ func (d Decoder) HasImage() bool {
 //Get image format string TO BE REMOVED
 func (d Decoder) imageFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_VIDEO)
+	defer C.avcodec_close(unsafe.Pointer(c))
 	if c == nil {
 		return ""
 	}
@@ -239,5 +248,11 @@ func (d Decoder) Picture() []byte {
 	if img.size <= 0 || img.data == nil {
 		return nil
 	}
+	defer C.av_free_packet(&img)
 	return C.GoBytes(unsafe.Pointer(img.data), img.size)
+}
+
+func (d *Decoder) Destroy() {
+	C.destroy(d.ctx)
+	d = nil
 }
