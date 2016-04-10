@@ -196,6 +196,10 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	}
 }
 
+func (d Decoder) DestroyDecoder() {
+	C.av_free(unsafe.Pointer(d.ctx.pb))
+}
+
 //Gets duration of audio track.
 func (d Decoder) Duration() time.Duration {
 	return time.Duration(d.ctx.duration) * 1000
