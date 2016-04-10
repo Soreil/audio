@@ -155,7 +155,7 @@ import (
 	"unsafe"
 )
 
-//Wrapper around internal state, all methods are called on this.
+//Decoder wraps around internal state, all methods are called on this.
 type Decoder struct {
 	ctx *C.AVFormatContext
 }
@@ -178,7 +178,7 @@ func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
 	return array
 }
 
-//Sets up a context for the file to use to probe for information.
+//NewDecoder sets up a context for the file to use to probe for information.
 func NewDecoder(r io.Reader) (Decoder, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -191,21 +191,16 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	if ctx := C.create_context((*C.uchar)(byteSliceToCArray(data)), C.size_t(len(data))); ctx != nil {
 		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
-	} else {
-		return Decoder{}, errors.New("Failed to create decoder context")
 	}
+	return Decoder{}, errors.New("Failed to create decoder context")
 }
 
-func (d Decoder) DestroyDecoder() {
-	C.av_free(unsafe.Pointer(d.ctx.pb))
-}
-
-//Gets duration of audio track.
+//Duration gets the duration of the file.
 func (d Decoder) Duration() time.Duration {
 	return time.Duration(d.ctx.duration) * 1000
 }
 
-//Get audio format string
+//AudioFormat gets format string
 func (d Decoder) AudioFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
 	defer C.avcodec_close(unsafe.Pointer(c))
@@ -215,7 +210,7 @@ func (d Decoder) AudioFormat() string {
 	return C.GoString(c.codec.name)
 }
 
-//Returns bitrate in bps.
+//Bitrate returns the bitrate in bits per second. For some files this will be absolute, for some an estimate.
 func (d Decoder) Bitrate() int64 {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
 	defer C.avcodec_close(unsafe.Pointer(c))
@@ -226,7 +221,7 @@ func (d Decoder) Bitrate() int64 {
 	return int64(c.bit_rate)
 }
 
-//Whether or not the file has album art in it
+//HasImage return whether or not the file has album art in it
 func (d Decoder) HasImage() bool {
 	return C.has_image(d.ctx) == 0
 }
@@ -241,21 +236,20 @@ func (d Decoder) imageFormat() string {
 	fmt := C.GoString(c.codec.name)
 	if fmt == "mjpeg" {
 		return "jpeg"
-	} else {
-		return fmt
 	}
+	return fmt
 }
 
-//Extract attached image
+//Picture extracts attached image. This function will only work if the decoder was given enough data.
 func (d Decoder) Picture() []byte {
 	img := C.retrieve_album_art(d.ctx)
 	if img.size <= 0 || img.data == nil {
 		return nil
 	}
-	defer C.av_free_packet(&img)
 	return C.GoBytes(unsafe.Pointer(img.data), img.size)
 }
 
+//Destroy frees the decoder, it should not be used after this point with a NewDecoder call.
 func (d *Decoder) Destroy() {
 	C.destroy(d.ctx)
 	d = nil

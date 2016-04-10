@@ -38,7 +38,6 @@ func TestConstruct(t *testing.T) {
 		"itunes.m4a",
 	}
 	for _, input := range files {
-		t.Log()
 		t.Log("Filename: ", input)
 		f, err := os.Open(input)
 		if err != nil {
