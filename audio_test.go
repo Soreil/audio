@@ -58,5 +58,6 @@ func TestConstruct(t *testing.T) {
 			pic := dec.Picture()
 			t.Log("Picture length: ", len(pic)/1024, "k")
 		}
+		dec.Destroy()
 	}
 }

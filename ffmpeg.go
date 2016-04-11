@@ -145,7 +145,8 @@ void destroy(AVFormatContext *ctx) {
 	av_free(ctx->pb->buffer);
 	ctx->pb->buffer = NULL;
 	av_free(ctx->pb);
-	av_free(ctx);
+	//av_free(ctx);
+	avformat_close_input(&ctx);
 }
 */
 import "C"
@@ -190,7 +191,12 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 		return Decoder{}, errors.New("No input data provided")
 	}
 	buf := byteSliceToCArray(data)
-	defer C.free(buf)
+	defer func() {
+		if buf != nil {
+			C.free(buf)
+		}
+	}()
+
 	if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
 		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
