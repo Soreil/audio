@@ -80,12 +80,24 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 	//Set up context to read from memory
 	ctx->pb = ioCtx;
 
+	int64_t read = 0;
+	read = read_packet(&bd,buffer,BUFFER_SIZE);
+	//printf("%d\n",read);
+	seek(&bd,0,SEEK_SET);
+
+	AVProbeData probeData;
+	probeData.buf = buffer;
+	probeData.buf_size = read-1;
+	probeData.filename = "";
+
+	// Determine the input-format:
+	ctx->iformat = av_probe_input_format(&probeData, 0);
+
+	ctx->flags = AVFMT_FLAG_CUSTOM_IO;
 	int err = avformat_open_input(&ctx, NULL, NULL, NULL);
 	if (err < 0) {
 		return NULL;
 	}
-	//TODO(sjon): This is changed in FFMPEG 3.0 but should behave the same
-	//ctx->max_analyze_duration = 100000000;
 	err = avformat_find_stream_info(ctx,NULL);
 	if (err < 0) {
 		return NULL;
@@ -145,7 +157,6 @@ void destroy(AVFormatContext *ctx) {
 	av_free(ctx->pb->buffer);
 	ctx->pb->buffer = NULL;
 	av_free(ctx->pb);
-	//av_free(ctx);
 	avformat_close_input(&ctx);
 }
 */
@@ -191,14 +202,9 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 		return Decoder{}, errors.New("No input data provided")
 	}
 	buf := byteSliceToCArray(data)
-	defer func() {
-		if buf != nil {
-			C.free(buf)
-		}
-	}()
-
+	defer C.free(buf)
 	if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
-		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
+		//if ctx := C.create_context((*C.uchar)(&data[0]), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
 	}
 	return Decoder{}, errors.New("Failed to create decoder context")
