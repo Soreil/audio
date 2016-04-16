@@ -183,20 +183,10 @@ type Decoder struct {
 func init() {
 	C.av_register_all()
 	C.avcodec_register_all()
-	C.av_log_set_level(48)
+	C.av_log_set_level(16)
 }
 
-func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
-	var array = unsafe.Pointer(C.calloc(C.size_t(len(byteSlice)), 1))
-	var arrayptr = uintptr(array)
-
-	for i := 0; i < len(byteSlice); i++ {
-		*(*C.uchar)(unsafe.Pointer(arrayptr)) = C.uchar(byteSlice[i])
-		arrayptr++
-	}
-
-	return array
-}
+var DecoderError = errors.New("Failed to create decoder context")
 
 //NewDecoder sets up a context for the file to use to probe for information.
 func NewDecoder(r io.Reader) (Decoder, error) {
@@ -205,15 +195,12 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 		return Decoder{}, err
 	}
 	if len(data) == 0 {
-		return Decoder{}, errors.New("No data read")
+		return Decoder{}, DecoderError
 	}
-	//buf := byteSliceToCArray(data)
-	//defer C.free(buf)
-	//if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
 	if ctx := C.create_context((*C.uchar)(&data[0]), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
 	}
-	return Decoder{}, errors.New("Failed to create decoder context")
+	return Decoder{}, DecoderError
 }
 
 //Duration gets the duration of the file.
