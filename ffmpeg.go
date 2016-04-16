@@ -15,6 +15,7 @@ package audio
 //Placeholder, 256K is enough to make Opus with JPG succeed, 512K Opus with PNG.
 //#define BUFFER_SIZE 524288
 #define BUFFER_SIZE 4096
+//#define BUFFER_SIZE 65536
 
 struct buffer_data {
 	uint8_t *start_ptr; ///< start of buffer
@@ -41,7 +42,7 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
     struct buffer_data *bd = (struct buffer_data *)opaque;
 
 	if (whence == AVSEEK_SIZE) {
-        return bd->size; // "size of my handle in bytes"
+    //    return bd->size; // "size of my handle in bytes"
         return -1; // "size of my handle in bytes UNIMPLEMENTED"
 	}
 	if (whence == SEEK_CUR) { // relative to start of file
@@ -62,6 +63,7 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
 
 AVFormatContext * create_context(unsigned char *opaque,size_t len)
 {
+	char errstringbuf[1024];
 	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE);
 
 	struct buffer_data bd = {0};
@@ -74,20 +76,37 @@ AVFormatContext * create_context(unsigned char *opaque,size_t len)
 
 	AVFormatContext * ctx = avformat_alloc_context();
 	if (!ctx) {
+		av_strerror(-1,errstringbuf,1024);
+		fprintf(stderr,"%s\n",errstringbuf);
 		return NULL;
 	}
 
 	//Set up context to read from memory
 	ctx->pb = ioCtx;
 
+	int64_t read = 0;
+	read = read_packet(&bd,buffer,BUFFER_SIZE);
+	seek(&bd,0,SEEK_SET);
+
+	AVProbeData probeData;
+	probeData.buf = buffer;
+	probeData.buf_size = read-1;
+	probeData.filename = "";
+
+	// Determine the input-format:
+	ctx->iformat = av_probe_input_format(&probeData, 0);
+
+	ctx->flags = AVFMT_FLAG_CUSTOM_IO;
 	int err = avformat_open_input(&ctx, NULL, NULL, NULL);
 	if (err < 0) {
+		av_strerror(err,errstringbuf,1024);
+		fprintf(stderr,"%s\n",errstringbuf);
 		return NULL;
 	}
-	//TODO(sjon): This is changed in FFMPEG 3.0 but should behave the same
-	//ctx->max_analyze_duration = 100000000;
 	err = avformat_find_stream_info(ctx,NULL);
 	if (err < 0) {
+		av_strerror(err,errstringbuf,1024);
+		fprintf(stderr,"%s\n",errstringbuf);
 		return NULL;
 	}
 
@@ -145,7 +164,6 @@ void destroy(AVFormatContext *ctx) {
 	av_free(ctx->pb->buffer);
 	ctx->pb->buffer = NULL;
 	av_free(ctx->pb);
-	//av_free(ctx);
 	avformat_close_input(&ctx);
 }
 */
@@ -166,7 +184,7 @@ type Decoder struct {
 func init() {
 	C.av_register_all()
 	C.avcodec_register_all()
-	C.av_log_set_level(16)
+	C.av_log_set_level(48)
 }
 
 func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
@@ -187,18 +205,13 @@ func NewDecoder(r io.Reader) (Decoder, error) {
 	if err != nil {
 		return Decoder{}, err
 	}
-	if len(data) <= 0 {
-		return Decoder{}, errors.New("No input data provided")
+	if len(data) == 0 {
+		return Decoder{}, errors.New("No data read")
 	}
-	buf := byteSliceToCArray(data)
-	defer func() {
-		if buf != nil {
-			C.free(buf)
-		}
-	}()
-
-	if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
-		//if ctx := C.create_context((*C.uchar)(unsafe.Pointer(&data[0])), C.size_t(len(data))); ctx != nil {
+	//buf := byteSliceToCArray(data)
+	//defer C.free(buf)
+	//if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
+	if ctx := C.create_context((*C.uchar)(&data[0]), C.size_t(len(data))); ctx != nil {
 		return Decoder{ctx: ctx}, nil
 	}
 	return Decoder{}, errors.New("Failed to create decoder context")
