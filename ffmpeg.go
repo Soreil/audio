@@ -42,8 +42,7 @@ static int64_t seek(void *opaque, int64_t offset, int whence)
     struct buffer_data *bd = (struct buffer_data *)opaque;
 
 	if (whence == AVSEEK_SIZE) {
-    //    return bd->size; // "size of my handle in bytes"
-        return -1; // "size of my handle in bytes UNIMPLEMENTED"
+        return bd->size; // "size of my handle in bytes"
 	}
 	if (whence == SEEK_CUR) { // relative to start of file
 		bd->ptr_pos += offset;
