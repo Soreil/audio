@@ -197,8 +197,6 @@ func NewAVIOContext(ctx *C.AVFormatContext, handlers *AVIOHandlers) (*AVIOContex
 
 func (this *AVIOContext) Free() {
 	delete(handlersMap, this.handlerKey)
-	C.av_free(unsafe.Pointer(this.avAVIOContext.buffer))
-	C.av_free(unsafe.Pointer(this.avAVIOContext))
 }
 
 //export readCallBack
