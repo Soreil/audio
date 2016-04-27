@@ -12,101 +12,44 @@ package audio
 #include <stdlib.h>
 #include <stdint.h>
 
-//Placeholder, 256K is enough to make Opus with JPG succeed, 512K Opus with PNG.
-//#define BUFFER_SIZE 524288
-#define BUFFER_SIZE 4096
+extern int readCallBack(void*, uint8_t*, int);
+extern int writeCallBack(void*, uint8_t*, int);
+extern int64_t seekCallBack(void*, int64_t, int);
 
-struct buffer_data {
-	uint8_t *start_ptr; ///< start of buffer
-    uint8_t *ptr_pos; ///<current index in buffer
-    size_t size_left; ///< size left in the buffer
-    size_t size; ///< size of the buffer
-};
-
-static int read_packet(void *opaque, uint8_t *buf, int buf_size)
+static inline AVFormatContext * create_context(AVFormatContext *ctx)
 {
-    struct buffer_data *bd = (struct buffer_data *)opaque;
-	if( buf_size > bd->size_left) {
-		buf_size = bd->size_left;
-	}
+	char errstringbuf[1024];
+	//int64_t read = 0;
+	//read = read_packet(&bd,buffer,BUFFER_SIZE);
+	//seek(&bd,0,SEEK_SET);
 
-    // copy internal buffer data to buf
-    memcpy(buf, bd->ptr_pos, buf_size);
-    bd->ptr_pos  += buf_size;
-    bd->size_left -= buf_size;
-    return buf_size;
-}
-static int64_t seek(void *opaque, int64_t offset, int whence)
-{
-    struct buffer_data *bd = (struct buffer_data *)opaque;
+	//AVProbeData probeData;
+	//probeData.buf = buffer;
+	//probeData.buf_size = read-1;
+	//probeData.filename = "";
 
-	if (whence == AVSEEK_SIZE) {
-        return bd->size; // "size of my handle in bytes"
-        return -1; // "size of my handle in bytes UNIMPLEMENTED"
-	}
-	if (whence == SEEK_CUR) { // relative to start of file
-		bd->ptr_pos += offset;
-		bd->size_left -= offset;
-    }
-	if (whence == SEEK_END) { // relative to end of file
-        bd->ptr_pos = bd->start_ptr+bd->size + offset;
-		bd->size_left = bd->size+offset;
-    }
-	if (whence == SEEK_SET) { // relative to start of file
-		bd->ptr_pos = bd->start_ptr+offset;
-		bd->size_left = bd->size-offset;
-	}
+	//// Determine the input-format:
+	//ctx->iformat = av_probe_input_format(&probeData, 0);
+	//
+	//ctx->flags = AVFMT_FLAG_CUSTOM_IO;
 
-	return bd->size-bd->size_left;
-}
-
-AVFormatContext * create_context(unsigned char *opaque,size_t len)
-{
-	unsigned char *buffer = (unsigned char*)av_malloc(BUFFER_SIZE);
-
-	struct buffer_data bd = {0};
-	bd.start_ptr = opaque;
-	bd.ptr_pos = opaque;
-	bd.size_left = len;
-	bd.size = len;
-
-	AVIOContext *ioCtx = avio_alloc_context(buffer,BUFFER_SIZE,0,&bd,&read_packet,NULL,&seek);
-
-	AVFormatContext * ctx = avformat_alloc_context();
-	if (!ctx) {
-		return NULL;
-	}
-
-	//Set up context to read from memory
-	ctx->pb = ioCtx;
-
-	int64_t read = 0;
-	read = read_packet(&bd,buffer,BUFFER_SIZE);
-	//printf("%d\n",read);
-	seek(&bd,0,SEEK_SET);
-
-	AVProbeData probeData;
-	probeData.buf = buffer;
-	probeData.buf_size = read-1;
-	probeData.filename = "";
-
-	// Determine the input-format:
-	ctx->iformat = av_probe_input_format(&probeData, 0);
-
-	ctx->flags = AVFMT_FLAG_CUSTOM_IO;
 	int err = avformat_open_input(&ctx, NULL, NULL, NULL);
 	if (err < 0) {
+		av_strerror(err,errstringbuf,1024);
+		fprintf(stderr,"%s\n",errstringbuf);
 		return NULL;
 	}
 	err = avformat_find_stream_info(ctx,NULL);
 	if (err < 0) {
+		av_strerror(err,errstringbuf,1024);
+		fprintf(stderr,"%s\n",errstringbuf);
 		return NULL;
 	}
 
 	return ctx;
 }
 
-AVCodecContext * get_codecContext(AVFormatContext *ctx,enum AVMediaType strmType) {
+static inline AVCodecContext * get_codecContext(AVFormatContext *ctx,enum AVMediaType strmType) {
 	AVCodec * codec = NULL;
 
 	int strm = av_find_best_stream(ctx, strmType, -1, -1, &codec, 0);
@@ -122,7 +65,7 @@ AVCodecContext * get_codecContext(AVFormatContext *ctx,enum AVMediaType strmType
 }
 
 //Doesn't seem to produce any nice results sadly
-int64_t get_duration(AVFormatContext *ctx) {
+static inline int64_t get_duration(AVFormatContext *ctx) {
 	int strm = av_find_best_stream(ctx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
 	if (strm < 0|| strm == AVERROR_STREAM_NOT_FOUND ){
 		return 0;
@@ -131,7 +74,7 @@ int64_t get_duration(AVFormatContext *ctx) {
 }
 
 //Extract embedded images
-AVPacket retrieve_album_art(AVFormatContext *ctx) {
+static inline AVPacket retrieve_album_art(AVFormatContext *ctx) {
 	AVPacket err;
 
 	// find the first attached picture, if available
@@ -143,7 +86,7 @@ AVPacket retrieve_album_art(AVFormatContext *ctx) {
 	return err;
 }
 
-int has_image(AVFormatContext *ctx) {
+static inline int has_image(AVFormatContext *ctx) {
 	// find the first attached picture, if available
 	for (int i = 0; i < ctx->nb_streams; i++) {
 		if (ctx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) {
@@ -153,7 +96,7 @@ int has_image(AVFormatContext *ctx) {
 	return 1;
 }
 
-void destroy(AVFormatContext *ctx) {
+static inline void destroy(AVFormatContext *ctx) {
 	av_free(ctx->pb->buffer);
 	ctx->pb->buffer = NULL;
 	av_free(ctx->pb);
@@ -163,16 +106,21 @@ void destroy(AVFormatContext *ctx) {
 import "C"
 import (
 	"errors"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"time"
 	"unsafe"
 )
 
 //Decoder wraps around internal state, all methods are called on this.
 type Decoder struct {
-	ctx *C.AVFormatContext
+	ctx   *C.AVFormatContext
+	ioCtx *avIOContext
 }
+
+var (
+	IO_BUFFER_SIZE int = 4096
+)
 
 func init() {
 	C.av_register_all()
@@ -180,34 +128,148 @@ func init() {
 	C.av_log_set_level(16)
 }
 
-func byteSliceToCArray(byteSlice []byte) unsafe.Pointer {
-	var array = unsafe.Pointer(C.calloc(C.size_t(len(byteSlice)), 1))
-	var arrayptr = uintptr(array)
-
-	for i := 0; i < len(byteSlice); i++ {
-		*(*C.uchar)(unsafe.Pointer(arrayptr)) = C.uchar(byteSlice[i])
-		arrayptr++
-	}
-
-	return array
+/////////////////////////////////////
+// Functions prototypes for custom IO. Implement necessary prototypes and pass instance pointer to NewAVIOContext.
+//
+// E.g.:
+// 	func gridFsReader() ([]byte, int) {
+// 		... implementation ...
+//		return data, length
+//	}
+//
+//	avoictx := NewAVIOContext(ctx, &AVIOHandlers{ReadPacket: gridFsReader})
+type avIOHandlers struct {
+	ReadPacket  func([]byte) (int, error)
+	WritePacket func([]byte) (int, error)
+	Seek        func(int64, int) (int64, error)
 }
 
-//NewDecoder sets up a context for the file to use to probe for information.
-func NewDecoder(r io.Reader) (Decoder, error) {
-	data, err := ioutil.ReadAll(r)
+// Global map of AVIOHandlers
+// one handlers struct per format context. Using ctx pointer address as a key.
+var handlersMap map[uintptr]*avIOHandlers
+
+type avIOContext struct {
+	// avAVIOContext *_Ctype_AVIOContext
+	avAVIOContext *C.struct_AVIOContext
+	handlerKey    uintptr
+}
+
+// AVIOContext constructor. Use it only if You need custom IO behaviour!
+func newAVIOContext(ctx *C.AVFormatContext, handlers *avIOHandlers) (*avIOContext, error) {
+	this := &avIOContext{}
+
+	buffer := (*C.uchar)(C.av_malloc(C.size_t(IO_BUFFER_SIZE)))
+
+	if buffer == nil {
+		return nil, errors.New("unable to allocate buffer")
+	}
+
+	// we have to explicitly set it to nil, to force library using default handlers
+	var ptrRead, ptrWrite, ptrSeek *[0]byte = nil, nil, nil
+
+	if handlers != nil {
+		if handlersMap == nil {
+			handlersMap = make(map[uintptr]*avIOHandlers)
+		}
+
+		handlersMap[uintptr(unsafe.Pointer(ctx))] = handlers
+		this.handlerKey = uintptr(unsafe.Pointer(ctx))
+	}
+
+	if handlers.ReadPacket != nil {
+		ptrRead = (*[0]byte)(C.readCallBack)
+	}
+
+	if handlers.WritePacket != nil {
+		ptrWrite = (*[0]byte)(C.writeCallBack)
+	}
+
+	if handlers.Seek != nil {
+		ptrSeek = (*[0]byte)(C.seekCallBack)
+	}
+
+	if this.avAVIOContext = C.avio_alloc_context(buffer, C.int(IO_BUFFER_SIZE), 0, unsafe.Pointer(ctx), ptrRead, ptrWrite, ptrSeek); this.avAVIOContext == nil {
+		return nil, errors.New("unable to initialize avio context")
+	}
+
+	return this, nil
+}
+
+func (this *avIOContext) Free() {
+	delete(handlersMap, this.handlerKey)
+}
+
+//export readCallBack
+func readCallBack(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
+	handlers, found := handlersMap[uintptr(opaque)]
+	if !found {
+		panic(fmt.Sprintf("No handlers instance found, according pointer: %v", opaque))
+	}
+
+	if handlers.ReadPacket == nil {
+		panic("No reader handler initialized")
+	}
+	s := (*[1 << 30]byte)(unsafe.Pointer(buf))[:buf_size:buf_size]
+	n, err := handlers.ReadPacket(s)
 	if err != nil {
-		return Decoder{}, err
+		return -1
 	}
-	if len(data) <= 0 {
-		return Decoder{}, errors.New("No input data provided")
+	return C.int(n)
+}
+
+//export writeCallBack
+func writeCallBack(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
+	handlers, found := handlersMap[uintptr(opaque)]
+	if !found {
+		panic(fmt.Sprintf("No handlers instance found, according pointer: %v", opaque))
 	}
-	buf := byteSliceToCArray(data)
-	defer C.free(buf)
-	if ctx := C.create_context((*C.uchar)(buf), C.size_t(len(data))); ctx != nil {
-		//if ctx := C.create_context((*C.uchar)(&data[0]), C.size_t(len(data))); ctx != nil {
-		return Decoder{ctx: ctx}, nil
+
+	if handlers.WritePacket == nil {
+		panic("No writer handler initialized.")
 	}
-	return Decoder{}, errors.New("Failed to create decoder context")
+
+	n, err := handlers.WritePacket(C.GoBytes(unsafe.Pointer(buf), buf_size))
+	if err != nil {
+		return -1
+	}
+	return C.int(n)
+}
+
+//export seekCallBack
+func seekCallBack(opaque unsafe.Pointer, offset C.int64_t, whence C.int) C.int64_t {
+	handlers, found := handlersMap[uintptr(opaque)]
+	if !found {
+		panic(fmt.Sprintf("No handlers instance found, according pointer: %v", opaque))
+	}
+
+	if handlers.Seek == nil {
+		panic("No seek handler initialized.")
+	}
+
+	n, err := handlers.Seek(int64(offset), int(whence))
+	if err != nil {
+		return -1
+	}
+	return C.int64_t(n)
+}
+
+/////////////////////////////////////
+
+var DecoderError = errors.New("Failed to create decoder context")
+
+//NewDecoder sets up a context for the file to use to probe for information.
+func NewDecoder(r io.ReadSeeker) (Decoder, error) {
+	ctx := C.avformat_alloc_context()
+	avioCtx, err := newAVIOContext(ctx, &avIOHandlers{ReadPacket: r.Read, Seek: r.Seek})
+	if err != nil {
+		panic(err)
+	}
+	ctx.pb = avioCtx.avAVIOContext
+	if ctx = C.create_context(ctx); ctx != nil {
+		return Decoder{ctx: ctx, ioCtx: avioCtx}, nil
+	}
+	avioCtx.Free()
+	return Decoder{}, DecoderError
 }
 
 //Duration gets the duration of the file.

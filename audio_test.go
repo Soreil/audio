@@ -1,7 +1,6 @@
 package audio
 
 import (
-	"io"
 	"os"
 	"testing"
 )
@@ -43,9 +42,9 @@ func TestConstruct(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dec, err := NewDecoder(io.Reader(f))
+		dec, err := NewDecoder(f)
 		if err != nil {
-			t.Log("Failed to create decoder", err)
+			t.Log(err)
 			continue
 		}
 		if fmt := dec.AudioFormat(); fmt != "" {
