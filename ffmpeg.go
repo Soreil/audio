@@ -115,7 +115,7 @@ import (
 //Decoder wraps around internal state, all methods are called on this.
 type Decoder struct {
 	ctx   *C.AVFormatContext
-	ioCtx *AVIOContext
+	ioCtx *avIOContext
 }
 
 var (
@@ -138,7 +138,7 @@ func init() {
 //	}
 //
 //	avoictx := NewAVIOContext(ctx, &AVIOHandlers{ReadPacket: gridFsReader})
-type AVIOHandlers struct {
+type avIOHandlers struct {
 	ReadPacket  func([]byte) (int, error)
 	WritePacket func([]byte) (int, error)
 	Seek        func(int64, int) (int64, error)
@@ -146,17 +146,17 @@ type AVIOHandlers struct {
 
 // Global map of AVIOHandlers
 // one handlers struct per format context. Using ctx pointer address as a key.
-var handlersMap map[uintptr]*AVIOHandlers
+var handlersMap map[uintptr]*avIOHandlers
 
-type AVIOContext struct {
+type avIOContext struct {
 	// avAVIOContext *_Ctype_AVIOContext
 	avAVIOContext *C.struct_AVIOContext
 	handlerKey    uintptr
 }
 
 // AVIOContext constructor. Use it only if You need custom IO behaviour!
-func NewAVIOContext(ctx *C.AVFormatContext, handlers *AVIOHandlers) (*AVIOContext, error) {
-	this := &AVIOContext{}
+func newAVIOContext(ctx *C.AVFormatContext, handlers *avIOHandlers) (*avIOContext, error) {
+	this := &avIOContext{}
 
 	buffer := (*C.uchar)(C.av_malloc(C.size_t(IO_BUFFER_SIZE)))
 
@@ -169,7 +169,7 @@ func NewAVIOContext(ctx *C.AVFormatContext, handlers *AVIOHandlers) (*AVIOContex
 
 	if handlers != nil {
 		if handlersMap == nil {
-			handlersMap = make(map[uintptr]*AVIOHandlers)
+			handlersMap = make(map[uintptr]*avIOHandlers)
 		}
 
 		handlersMap[uintptr(unsafe.Pointer(ctx))] = handlers
@@ -195,7 +195,7 @@ func NewAVIOContext(ctx *C.AVFormatContext, handlers *AVIOHandlers) (*AVIOContex
 	return this, nil
 }
 
-func (this *AVIOContext) Free() {
+func (this *avIOContext) Free() {
 	delete(handlersMap, this.handlerKey)
 }
 
@@ -260,7 +260,7 @@ var DecoderError = errors.New("Failed to create decoder context")
 //NewDecoder sets up a context for the file to use to probe for information.
 func NewDecoder(r io.ReadSeeker) (Decoder, error) {
 	ctx := C.avformat_alloc_context()
-	avioCtx, err := NewAVIOContext(ctx, &AVIOHandlers{ReadPacket: r.Read, Seek: r.Seek})
+	avioCtx, err := newAVIOContext(ctx, &avIOHandlers{ReadPacket: r.Read, Seek: r.Seek})
 	if err != nil {
 		panic(err)
 	}
