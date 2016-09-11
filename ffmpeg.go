@@ -280,7 +280,7 @@ func (d Decoder) Duration() time.Duration {
 //AudioFormat gets format string
 func (d Decoder) AudioFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
-	defer C.avcodec_close(unsafe.Pointer(c))
+	defer C.avcodec_close(c)
 	if c == nil {
 		return ""
 	}
@@ -290,7 +290,7 @@ func (d Decoder) AudioFormat() string {
 //Bitrate returns the bitrate in bits per second. For some files this will be absolute, for some an estimate.
 func (d Decoder) Bitrate() int64 {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_AUDIO)
-	defer C.avcodec_close(unsafe.Pointer(c))
+	defer C.avcodec_close(c)
 	if c == nil || c.bit_rate == 0 {
 		//This is an estimate, it might not be accurate!
 		return int64(d.ctx.bit_rate)
@@ -306,7 +306,7 @@ func (d Decoder) HasImage() bool {
 //Get image format string TO BE REMOVED
 func (d Decoder) imageFormat() string {
 	c := C.get_codecContext(d.ctx, C.AVMEDIA_TYPE_VIDEO)
-	defer C.avcodec_close(unsafe.Pointer(c))
+	defer C.avcodec_close(c)
 	if c == nil {
 		return ""
 	}
