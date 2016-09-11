@@ -12,9 +12,9 @@ package audio
 #include <stdlib.h>
 #include <stdint.h>
 
-extern int readCallBack(void*, uint8_t*, int);
-extern int writeCallBack(void*, uint8_t*, int);
-extern int64_t seekCallBack(void*, int64_t, int);
+extern int readCallBackAudio(void*, uint8_t*, int);
+extern int writeCallBackAudio(void*, uint8_t*, int);
+extern int64_t seekCallBackAudio(void*, int64_t, int);
 
 static inline AVFormatContext * create_context(AVFormatContext *ctx)
 {
@@ -177,15 +177,15 @@ func newAVIOContext(ctx *C.AVFormatContext, handlers *avIOHandlers) (*avIOContex
 	}
 
 	if handlers.ReadPacket != nil {
-		ptrRead = (*[0]byte)(C.readCallBack)
+		ptrRead = (*[0]byte)(C.readCallBackAudio)
 	}
 
 	if handlers.WritePacket != nil {
-		ptrWrite = (*[0]byte)(C.writeCallBack)
+		ptrWrite = (*[0]byte)(C.writeCallBackAudio)
 	}
 
 	if handlers.Seek != nil {
-		ptrSeek = (*[0]byte)(C.seekCallBack)
+		ptrSeek = (*[0]byte)(C.seekCallBackAudio)
 	}
 
 	if this.avAVIOContext = C.avio_alloc_context(buffer, C.int(IO_BUFFER_SIZE), 0, unsafe.Pointer(ctx), ptrRead, ptrWrite, ptrSeek); this.avAVIOContext == nil {
@@ -199,8 +199,8 @@ func (this *avIOContext) Free() {
 	delete(handlersMap, this.handlerKey)
 }
 
-//export readCallBack
-func readCallBack(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
+//export readCallBackAudio
+func readCallBackAudio(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
 	handlers, found := handlersMap[uintptr(opaque)]
 	if !found {
 		panic(fmt.Sprintf("No handlers instance found, according pointer: %v", opaque))
@@ -217,8 +217,8 @@ func readCallBack(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
 	return C.int(n)
 }
 
-//export writeCallBack
-func writeCallBack(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
+//export writeCallBackAudio
+func writeCallBackAudio(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int {
 	handlers, found := handlersMap[uintptr(opaque)]
 	if !found {
 		panic(fmt.Sprintf("No handlers instance found, according pointer: %v", opaque))
@@ -235,8 +235,8 @@ func writeCallBack(opaque unsafe.Pointer, buf *C.uint8_t, buf_size C.int) C.int 
 	return C.int(n)
 }
 
-//export seekCallBack
-func seekCallBack(opaque unsafe.Pointer, offset C.int64_t, whence C.int) C.int64_t {
+//export seekCallBackAudio
+func seekCallBackAudio(opaque unsafe.Pointer, offset C.int64_t, whence C.int) C.int64_t {
 	handlers, found := handlersMap[uintptr(opaque)]
 	if !found {
 		panic(fmt.Sprintf("No handlers instance found, according pointer: %v", opaque))
