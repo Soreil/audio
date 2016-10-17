@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bakape/video/avio"
+	"github.com/Soreil/video/avio"
 )
 
 func TestConstruct(t *testing.T) {
