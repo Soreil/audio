@@ -61,11 +61,3 @@ int has_image(AVFormatContext *ctx)
 	}
 	return 1;
 }
-
-void destroy(AVFormatContext *ctx)
-{
-	av_free(ctx->pb->buffer);
-	ctx->pb->buffer = NULL;
-	av_free(ctx->pb);
-	avformat_close_input(&ctx);
-}

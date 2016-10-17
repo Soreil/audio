@@ -85,10 +85,3 @@ func (d *Decoder) Picture() []byte {
 	}
 	return C.GoBytes(unsafe.Pointer(img.data), img.size)
 }
-
-// Close closes and frees the decoder, it should not be used after this point
-// with a NewDecoder call
-func (d *Decoder) Close() {
-	C.destroy(d.avFormatCtx)
-	d.Free()
-}
