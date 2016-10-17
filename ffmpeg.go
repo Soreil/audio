@@ -26,9 +26,7 @@ func init() {
 	C.av_log_set_level(16)
 }
 
-// NewDecoder sets up a context for the file to use to probe for information.
-// Note that no verification of the passed io.ReadSeaker is performed. Invalid
-// input such as zero byte files will crash with a SIGSEGV.
+// NewDecoder sets up a context for the file to use to probe for information
 func NewDecoder(r io.ReadSeeker) (*Decoder, error) {
 	ctx, err := avio.NewContext(&avio.Handlers{
 		ReadPacket: r.Read,
@@ -53,7 +51,7 @@ func (d *Decoder) Duration() time.Duration {
 
 // AudioFormat returns the format string of the file's audio stream
 func (d *Decoder) AudioFormat() string {
-	c := C.get_codecContext(d.avFormatCtx, C.AVMEDIA_TYPE_AUDIO)
+	c := C.get_codecContext(d.avFormatCtx)
 	defer C.avcodec_close(c)
 	if c == nil {
 		return ""
@@ -64,7 +62,7 @@ func (d *Decoder) AudioFormat() string {
 // Bitrate returns the bitrate in bits per second. For some files this will be
 // absolute, for some an estimate.
 func (d *Decoder) Bitrate() int64 {
-	c := C.get_codecContext(d.avFormatCtx, C.AVMEDIA_TYPE_AUDIO)
+	c := C.get_codecContext(d.avFormatCtx)
 	defer C.avcodec_close(c)
 	if c == nil || c.bit_rate == 0 {
 		//This is an estimate, it might not be accurate!

@@ -3,18 +3,23 @@ package audio
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/bakape/video/avio"
 )
 
 func TestConstruct(t *testing.T) {
 	t.Parallel()
 
 	files := [...]string{
+		"exampleFalse.mp3",
 		"exampleImage.mp3",
 		"exampleTrue.mp3",
 		"mpthreetest.mp3",
 		"examplePNG.mp3",
 
+		"exampleFalse.ogg",
 		"exampleJPG.ogg",
 		"examplePNG.ogg",
 		"exampleTrue.ogg",
@@ -46,7 +51,12 @@ func TestConstruct(t *testing.T) {
 			}
 
 			dec, err := NewDecoder(f)
-			if err != nil {
+			if strings.Contains(input, "False") {
+				if err != avio.ErrFailedAVIOCtx {
+					t.Fatalf("unexpected error: %#v", err)
+				}
+				return
+			} else if err != nil {
 				t.Fatal(err)
 			}
 			defer dec.Close()

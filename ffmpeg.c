@@ -7,12 +7,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-AVCodecContext *get_codecContext(AVFormatContext *ctx,
-				 enum AVMediaType strmType)
+AVCodecContext *get_codecContext(AVFormatContext *ctx)
 {
 	AVCodec *codec = NULL;
 
-	int strm = av_find_best_stream(ctx, strmType, -1, -1, &codec, 0);
+	int strm =
+	    av_find_best_stream(ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &codec, 0);
 	if (strm < 0 || strm == AVERROR_STREAM_NOT_FOUND) {
 		return NULL;
 	}
